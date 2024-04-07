@@ -1,11 +1,17 @@
 from django.contrib.auth.models import User
 from django.db import models
+from datetime import timedelta, datetime, date
 
 # Create your models here.
 
 USER_ROLES = (
     ('client', 'Клиент'),
     ('admin', 'Администратор'),
+)
+
+GENDER = (
+    ('male', 'Мужской'),
+    ('female', 'Женский'),
 )
 
 WEEKDAYS = (
@@ -52,6 +58,8 @@ class Trainer(models.Model):
     # username = models.CharField(max_length=255)  # Username for login
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
+    gender = models.CharField(choices=GENDER, max_length=7)
+    qualification_info = models.TextField(null=True, blank=True)
     surname = models.CharField(max_length=100)
     email = models.EmailField(unique=True, null=True, blank=True)
     gyms = models.ManyToManyField(Gym, related_name="trainers_gyms")
@@ -67,9 +75,16 @@ class Schedule(models.Model):
     trainer = models.ForeignKey(Trainer, on_delete=models.CASCADE)
     day = models.CharField(choices=WEEKDAYS, max_length=10)
     start_time = models.TimeField()
-    end_time = models.TimeField()
+    end_time = models.TimeField(null=True, blank=True)
     gym = models.ForeignKey(Gym, on_delete=models.CASCADE)
     is_busy = models.BooleanField(default=False)
+
+    def save(self, *args, **kwargs):
+        """Переопределяем метод сохранения для автоматической установки времени окончания."""
+        if not self.end_time:  # Установить end_time только если он не задан явно
+            self.end_time = (datetime.combine(date.min, self.start_time) + timedelta(minutes=50)).time()
+        super(Schedule, self).save(*args, **kwargs)
+
 
     def get_busy_intervals(self):
         """
@@ -91,10 +106,11 @@ class Schedule(models.Model):
     class Meta:
         db_table = 'schedules'
 
+
 class Booking(models.Model):
     schedule = models.ForeignKey(Schedule, on_delete=models.CASCADE)
     client = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name="bookings", limit_choices_to={'is_client': True})
-    is_busy = models.BooleanField(default=False)  # По умолчанию запись не занята
+    is_busy = models.BooleanField(default=False)
 
     def __str__(self):
         status = "Занято" if self.is_busy else "Свободно"
