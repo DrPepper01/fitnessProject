@@ -100,7 +100,7 @@ class BookingViewSet(viewsets.ModelViewSet):
             # Если пользователя с таким ID нет, возвращаем ошибку
             return Response({"detail": "Пользователь с указанным ID не найден."}, status=status.HTTP_404_NOT_FOUND)
 
-        if not client.is_client:  # Предполагается, что у вас есть такая проверка в модели пользователя
+        if not client.is_client:
             return Response(
                 {"detail": "Только клиенты могут записываться на тренировки."},
                 status=status.HTTP_403_FORBIDDEN
