@@ -1,4 +1,4 @@
-version: '3.8'
+version: '3.10'
 
 services:
   web:
@@ -8,20 +8,11 @@ services:
       - .:/app
     ports:
       - "8000:8000"
-    depends_on:
-      - db
     environment:
       - DEBUG=1
       - SECRET_KEY='django-insecure-@weaow$e+fy&lbvg0zklzzkr)9&-+dr-42)!kl!+dcu25y$(5)'
-      - DATABASE_URL=postgres://postgres:postgres@db:5432/postgres
-
-  db:
-    image: postgres:13
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
+      - DATABASE_URL=sqlite:///db.sqlite3
+# В идеале нам нужно брать данные из .env файла
 
 volumes:
   postgres_data:

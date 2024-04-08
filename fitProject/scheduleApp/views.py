@@ -2,6 +2,9 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.shortcuts import render
 
 from rest_framework import viewsets
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
+
 from .models import Profile, Trainer, Schedule, Booking, Gym
 from .serializers import ProfileSerializer, TrainerSerializer, ScheduleSerializer, BookingSerializer, GymSerializer
 
@@ -47,6 +50,11 @@ class TrainerViewSet(viewsets.ModelViewSet):
         return queryset
 
 
+show_free_parameter = openapi.Parameter('show_free', openapi.IN_QUERY,
+                                        description="Фильтр для отображения только свободного времени: 'true' или 'false'",
+                                        type=openapi.TYPE_STRING, enum=['true', 'false'])
+
+
 class ScheduleViewSet(viewsets.ModelViewSet):
     queryset = Schedule.objects.all()
     serializer_class = ScheduleSerializer
@@ -70,32 +78,40 @@ class ScheduleViewSet(viewsets.ModelViewSet):
 
         return queryset
 
+    @swagger_auto_schema(manual_parameters=[show_free_parameter])
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
 
 class BookingViewSet(viewsets.ModelViewSet):
     queryset = Booking.objects.all()
     serializer_class = BookingSerializer
+
     # permission_classes = [permissions.IsAuthenticated]
 
     def create(self, request, *args, **kwargs):
         schedule = get_object_or_404(Schedule, pk=request.data['schedule'])
-        user = request.user
-        if user.is_authenticated:
-            try:
-                profile = user.profile
-            except ObjectDoesNotExist:
-                profile = Profile.objects.create(user=user)
+        client_id = request.data.get('client')
 
-        if not profile.is_client:
+        user = request.user
+        try:
+            client = Profile.objects.get(pk=client_id)
+        except Profile.DoesNotExist:
+            # Если пользователя с таким ID нет, возвращаем ошибку
+            return Response({"detail": "Пользователь с указанным ID не найден."}, status=status.HTTP_404_NOT_FOUND)
+
+        if not client.is_client:  # Предполагается, что у вас есть такая проверка в модели пользователя
             return Response(
-                {"detail": "Тренеру нельзя записаться к другому тренеру."},
+                {"detail": "Только клиенты могут записываться на тренировки."},
                 status=status.HTTP_403_FORBIDDEN
             )
 
+        if Booking.objects.filter(schedule=schedule).exists():
+            return Response({"detail": "Это расписание уже занято."}, status=status.HTTP_400_BAD_REQUEST)
+
         booking = Booking.objects.create(
             schedule=schedule,
-            client=profile,
-            date=request.data['date'],
-            time=request.data['time'],
+            client=client,
         )
 
         serializer = BookingSerializer(booking, context={'request': request})

@@ -4,7 +4,7 @@ from .models import Booking, Schedule
 
 
 # Сигнал, который
-# обрабатывает создание бронирования
+# обрабатывает при создании бронирования
 @receiver(post_save, sender=Booking)
 def booking_created(sender, instance, created, **kwargs):
     if created:
